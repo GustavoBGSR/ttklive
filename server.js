@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 
 let filaEventos = [];
-let USERNAME_TIKTOK = "SEU_TIKTOK_AQUI"; // troca pelo seu @
+let USERNAME_TIKTOK = "minguadodelicioso"; // troca pelo seu @
 
 let tiktokConnection = new WebcastPushConnection(USERNAME_TIKTOK);
 
