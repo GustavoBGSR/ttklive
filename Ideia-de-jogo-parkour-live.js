@@ -5,7 +5,7 @@ const { WebcastPushConnection } = require('tiktok-live-connector');
 
 let filaEventos = []; // Roblox vai ler isso
 
-let tiktok = new WebcastPushConnection('SEU_@_AQUI_DO_TIKTOK');
+let tiktok = new WebcastPushConnection('minguadodelicioso');
 tiktok.connect();
 
 tiktok.on('chat', data => {
