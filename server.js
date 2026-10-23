@@ -1,40 +1,63 @@
 const express = require('express');
-const cors = require('cors');
 const { WebcastPushConnection } = require('tiktok-live-connector');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+const PORT = process.env.PORT || 10000;
+const TIKTOK_USER = process.env.TIKTOK_USERNAME || "minguadodelicioso";
 
-let filaEventos = [];
-let USERNAME_TIKTOK = process.env.TIKTOK_USERNAME || "minguadodelicioso";
+let comandos = [];
+let likes = {};
 
-let tiktokConnection = new WebcastPushConnection(USERNAME_TIKTOK);
+console.log(`Tentando conectar na live @${TIKTOK_USER}`);
 
-tiktokConnection.connect().then(state => {
-    console.log(`Conectado na live do @${USERNAME_TIKTOK}`);
-}).catch(err => console.error('Erro ao conectar:', err));
-
-tiktokConnection.on('chat', data => {
-    filaEventos.push({ tipo: 'ENTRAR', user: data.uniqueId });
+let connection = new WebcastPushConnection(TIKTOK_USER, {
+    enableExtendedGiftInfo: true
 });
 
-tiktokConnection.on('like', data => {
-    filaEventos.push({ tipo: 'LIKE', user: data.uniqueId, qtd: data.likeCount });
+async function connect() {
+    try {
+        const state = await connection.connect();
+        console.log(`✅ CONECTADO @${TIKTOK_USER} - Room ID: ${state.roomId}`);
+    } catch (err) {
+        console.error("Erro ao conectar, tentando de novo em 5s...", err);
+        setTimeout(connect, 5000);
+    }
+}
+connect();
+
+connection.on('chat', data => {
+    const tiktokUser = data.uniqueId;
+    let msg = data.comment.trim().replace(/@/g, "");
+    
+    if (msg.length < 3 || msg.length > 25) return;
+    if (msg.includes(" ")) return; // só aceita nick sem espaço
+    
+    console.log(`[CHAT] ${tiktokUser}: ${msg}`);
+    comandos.push({ tiktok: tiktokUser, roblox: msg });
 });
 
-tiktokConnection.on('gift', data => {
-    filaEventos.push({ tipo: 'NITRO', user: data.uniqueId, valor: data.diamondCount * data.repeatCount });
+connection.on('like', data => {
+    const user = data.uniqueId;
+    if (!likes[user]) likes[user] = 0;
+    likes[user] += data.likeCount || 1;
 });
 
-app.get('/eventos', (req, res) => {
-    res.json(filaEventos);
-    filaEventos = [];
+connection.on('disconnected', () => {
+    console.log("Desconectado, reconectando...");
+    setTimeout(connect, 5000);
+});
+
+// Rota que o Roblox lê
+app.get('/data', (req, res) => {
+    res.json({ comandos: comandos, likes: likes });
+    comandos = [];
+    likes = {};
 });
 
 app.get('/', (req, res) => {
-    res.send('Esgrima Race Server ON - Live: @' + USERNAME_TIKTOK);
+    res.send(`Esgrima Race Server ON - Live: @${TIKTOK_USER} - Comandos: ${comandos.length}`);
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('Server rodando na porta ' + PORT));
+app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
+});
